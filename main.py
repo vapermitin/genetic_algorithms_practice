@@ -1,107 +1,183 @@
-# Для заданного неориентированного графа G = (V,E)
-# необходимо найти множество вершин S,
-# которое является вершинным покрытием графа и минимально
+import tkinter as tk
+from tkinter import font, filedialog
+from genetic_algorithm import *
+import networkx as nx
+import matplotlib.pyplot as plt
+import pickle
 
-from math import inf
-import random
+class GeneticAlgorithmApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Genetic Algorithm")
+        self.root.geometry("400x400")
+        self.root.minsize(200, 200)
 
-k = 100
-adjacency_matrix = [[1 if i != j else 0 for j in range(k)] for i in range(k)]
+        root.columnconfigure(0, weight=1)
+        root.rowconfigure(0, weight=0)
+        root.rowconfigure(1, weight=1)
 
+        self.n = 3
+        self.vars = []
+        self.entries = []
 
-class GeneticAlgorithm:
-    def __init__(self, input_matrix, population_size, hard_constraint_penalty,
-                 crossover_probability, mutation_probability, tournament_size,
-                 elitement_size):
-        self.input_matrix = input_matrix
-        self.population_size = population_size
-        self.hard_constraint_penalty = hard_constraint_penalty
-        self.crossover_probability = crossover_probability
-        self.mutation_probability = mutation_probability
-        self.tournament_size = tournament_size
-        self.elitement_size = elitement_size
+        btn_frame = tk.Frame(root)
+        btn_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        for i in range(6):
+            btn_frame.columnconfigure(i, weight=1)
+        tk.Button(btn_frame, text="Add Vertex", command=self.add_vertex).grid(row=0, column=0, padx=5, sticky="ew")
+        tk.Button(btn_frame, text="Remove Vertex", command=self.remove_vertex).grid(row=0, column=1, padx=5, sticky="ew")
+        tk.Button(btn_frame, text="Show Graph", command=self.show_graph).grid(row=0, column=2, padx=5, sticky="ew")
+        tk.Button(btn_frame, text="Save Matrix", command=self.save_matrix).grid(row=0, column=3, padx=5, sticky="ew")
+        tk.Button(btn_frame, text="Load Matrix", command=self.load_matrix).grid(row=0, column=4, padx=5, sticky="ew")
+        tk.Button(btn_frame, text="Run Genetic Algorithm", command=self.run_genetic_algorithm).grid(row=0, column=5, padx=5, sticky="ew")
+
+        self.frame = tk.Frame(root, bg='lightgray')
+        self.frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+
+        self.frame.bind("<Configure>", self.on_frame_configure)
+        self.build_grid()
+
+    def get_iterations_count(self):
+        return 100
+
+    def build_grid(self):
+        for row in self.entries:
+            for e in row:
+                e.destroy()
+        self.entries.clear()
+        self.vars.clear()
+
+        for i in range(self.n + 1):
+            self.frame.grid_rowconfigure(i, weight=0, uniform='', minsize=0)
+            self.frame.grid_columnconfigure(i, weight=0, uniform='', minsize=0)
+
+        for i in range(self.n):
+            self.frame.grid_rowconfigure(i, weight=1, uniform='cell')
+            self.frame.grid_columnconfigure(i, weight=1, uniform='cell')
+
+        for i in range(self.n):
+            row_vars = []
+            row_entries = []
+            for j in range(self.n):
+                var = tk.StringVar(value="0")
+                var.trace_add("write", lambda *a, r=i, c=j: self.on_change(r, c))
+                row_vars.append(var)
+                e = tk.Entry(self.frame, textvariable=var, justify="center", width=1)
+                e.grid(row=i, column=j, sticky="nsew", padx=1, pady=1)
+                row_entries.append(e)
+            self.vars.append(row_vars)
+            self.entries.append(row_entries)
+
+        self.adjust_sizes()
+
+    def on_frame_configure(self, event):
+        self.adjust_sizes()
+
+    def adjust_sizes(self):
+        if self.n == 0:
+            return
+
+        frame_w = self.frame.winfo_width()
+        frame_h = self.frame.winfo_height()
+
+        pad = 2 * 1
+        col_w = max(10, (frame_w - pad * self.n) // self.n)
+        row_h = max(10, (frame_h - pad * self.n) // self.n)
+
+        font_size = max(6, min(24, int(row_h * 0.4)))
+        f = font.Font(family="TkDefaultFont", size=font_size)
+
+        char_w = f.measure("0")
+        entry_width = max(1, int(col_w / char_w))
+
+        for row in self.entries:
+            for e in row:
+                e.config(font=f, width=entry_width)
+
+    def on_change(self, i, j):
+        val = self.vars[i][j].get()
+        try:
+            float(val)
+        except ValueError:
+            if val != "":
+                val = "0"
+                self.vars[i][j].set(val)
+        if self.vars[j][i].get() != val:
+            self.vars[j][i].set(val)
     
-    def generate_random_population(self, count):
-        result = []
-        for _ in range(count):
-            random_genotype = bin(random.randrange(1, 2 ** len(self.input_matrix)))[2:].zfill(len(self.input_matrix))
-            result.append(list(map(int, random_genotype)))
-        return result
+    def run_genetic_algorithm(self):
+        ga = GeneticAlgorithm(
+            self.get_adjacency_matrix(),
+            population_size=100,
+            hard_constraint_penalty=10,
+            crossover_probability=0.8,
+            mutation_probability=0.01,
+            tournament_size=10,
+            elitement_size=2
+        )
+        best_individual, fitnesses = ga.run(self.get_iterations_count())
+        print(sum(best_individual))
+        plt.figure(figsize=(6, 4))
+        plt.plot(list(range(1, self.get_iterations_count() + 1)), fitnesses)
+        plt.show()
+
+    def add_vertex(self):
+        self.n += 1
+        self.build_grid()
+
+    def remove_vertex(self):
+        if self.n > 0:
+            self.n -= 1
+            self.build_grid()
     
-    def fitness_function(self, individual):
-        penalty_edges = 0
-        for i in range(len(self.input_matrix)):
-            for j in range(i, len(self.input_matrix)):
-                if self.input_matrix[i][j] != 1:
-                    continue
-                if individual[i] == 0 and individual[j] == 0:
-                    penalty_edges += 1
-        return len(self.input_matrix) - sum(individual) - penalty_edges * self.hard_constraint_penalty
+    def get_adjacency_matrix(self):
+        return [[float(self.vars[i][j].get().strip()) if self.vars[i][j].get() else 0.0 for i in range(self.n)] for j in range(self.n)]
+
+    def save_matrix(self):
+        file_object = filedialog.asksaveasfile(
+            mode='wb',
+            defaultextension=".graph",
+            filetypes=[("Graph files", "*.graph")]
+        )
+
+        if file_object is not None:
+            adjacency_matrix = self.get_adjacency_matrix()
+            pickle.dump(adjacency_matrix, file_object)
+            file_object.close()
     
-    # Равномерное скрещивание
-    def crossover_function(self, first_individual, second_individual):
-        for index in range(len(self.input_matrix)):
-            first_individual_value = first_individual[index]
-            if random.random() < 0.5:
-                first_individual[index] = second_individual[index]
-            if random.random() < 0.5:
-                second_individual[index] = first_individual_value
-    
-    def mutation_function(self, individual):
-        for index in range(len(self.input_matrix)):
-            if random.random() < self.mutation_probability:
-                individual[index] = 1 - individual[index]
+    def load_matrix(self):
+        file_object = filedialog.askopenfile(
+            mode='rb',
+            filetypes=[("Graph files", "*.graph")]
+        )
 
-    def run(self, iterations):
-        current_population = self.generate_random_population(self.population_size)
-        max_fitness = -inf
-        max_fitness_individual = None
+        if file_object is not None:
+            adjacency_matrix = pickle.load(file_object)
+            self.n = len(adjacency_matrix)
+            self.build_grid()
+            for i in range(self.n):
+                for j in range(self.n):
+                    self.vars[i][j].set(f"{adjacency_matrix[i][j]:g}")
+            file_object.close()
 
-        for iteration in range(iterations):
-            fitnesses = [self.fitness_function(ind) for ind in current_population]
+    def show_graph(self):
+        G = nx.Graph()
+        G.add_nodes_from(range(self.n))
+        for i in range(self.n):
+            for j in range(i, self.n):
+                val = self.vars[i][j].get().strip()
+                if val and val != "0":
+                    try:
+                        w = float(val)
+                        G.add_edge(i, j, weight=w)
+                    except ValueError:
+                        G.add_edge(i, j)
+        plt.figure(figsize=(5,5))
+        nx.draw(G, with_labels=True, node_color='lightblue', edge_color='gray')
+        plt.title("Graph")
+        plt.show()
 
-            sorted_indices = sorted(range(len(current_population)),
-                                    key=lambda i: fitnesses[i], reverse=True)
-            elite_indices = sorted_indices[:self.elitement_size]
-            new_population = [current_population[i].copy() for i in elite_indices]
-
-            while len(new_population) < self.population_size:
-                idx1 = random.sample(range(len(current_population)), self.tournament_size)
-                parent1_idx = max(idx1, key=lambda i: fitnesses[i])
-                idx2 = random.sample(range(len(current_population)), self.tournament_size)
-                parent2_idx = max(idx2, key=lambda i: fitnesses[i])
-
-                child1 = current_population[parent1_idx].copy()
-                child2 = current_population[parent2_idx].copy()
-
-                if random.random() < self.crossover_probability:
-                    self.crossover_function(child1, child2)
-                self.mutation_function(child1)
-                self.mutation_function(child2)
-
-                new_population.append(child1)
-                if len(new_population) < self.population_size:
-                    new_population.append(child2)
-
-            current_population = new_population
-
-            new_fitnesses = [self.fitness_function(ind) for ind in current_population]
-            population_best = max(range(len(new_fitnesses)), key=lambda index: new_fitnesses[index])
-            if new_fitnesses[population_best] > max_fitness:
-                max_fitness = new_fitnesses[population_best]
-                max_fitness_individual = current_population[population_best]
-            print(f"Итерация: {iteration}, макс. приспособленность: {max_fitness}")
-
-        return max_fitness_individual
-
-
-og = GeneticAlgorithm(
-    adjacency_matrix,
-    population_size=100,
-    hard_constraint_penalty=10,
-    crossover_probability=0.8,
-    mutation_probability=0.01,
-    tournament_size=10,
-    elitement_size=2
-)
-print(og.run(100))
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = GeneticAlgorithmApp(root)
+    root.mainloop()

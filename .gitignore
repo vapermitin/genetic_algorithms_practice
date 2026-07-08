@@ -1,0 +1,7 @@
+report
+report/*
+kivy_venv
+kivy_venv/*
+*.graph
+__pycache__/
+__pycache__/*
