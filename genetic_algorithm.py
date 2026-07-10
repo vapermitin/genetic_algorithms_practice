@@ -33,7 +33,8 @@ class GeneticAlgorithm:
                     continue
                 if individual[i] == 0 and individual[j] == 0:
                     penalty_edges += 1
-        return len(self.input_matrix) - sum(individual) - penalty_edges * self.hard_constraint_penalty
+        max_edges_count = (len(self.input_matrix) * (len(self.input_matrix) - 1)) // 2
+        return len(self.input_matrix) + max_edges_count * self.hard_constraint_penalty - sum(individual) - penalty_edges * self.hard_constraint_penalty
     
     # Равномерное скрещивание
     def crossover_function(self, first_individual, second_individual):
@@ -49,6 +50,34 @@ class GeneticAlgorithm:
             if random.random() < self.mutation_probability:
                 individual[index] = 1 - individual[index]
 
+    def run_iteration(self, current_population):
+        fitnesses = [self.fitness_function(ind) for ind in current_population]
+
+        sorted_indices = sorted(range(len(current_population)),
+                                key=lambda i: fitnesses[i], reverse=True)
+        elite_indices = sorted_indices[:self.elitement_size]
+        new_population = [current_population[i].copy() for i in elite_indices]
+
+        while len(new_population) < self.population_size:
+            idx1 = random.sample(range(len(current_population)), self.tournament_size)
+            parent1_idx = max(idx1, key=lambda i: fitnesses[i])
+            idx2 = random.sample(range(len(current_population)), self.tournament_size)
+            parent2_idx = max(idx2, key=lambda i: fitnesses[i])
+
+            child1 = current_population[parent1_idx].copy()
+            child2 = current_population[parent2_idx].copy()
+
+            if random.random() < self.crossover_probability:
+                self.crossover_function(child1, child2)
+            self.mutation_function(child1)
+            self.mutation_function(child2)
+
+            new_population.append(child1)
+            if len(new_population) < self.population_size:
+                new_population.append(child2)
+
+        return new_population
+
     def run(self, iterations):
         current_population = self.generate_random_population(self.population_size)
         max_fitness = -inf
@@ -56,33 +85,8 @@ class GeneticAlgorithm:
         max_fitness_individual = None
 
         for iteration in range(iterations):
-            fitnesses = [self.fitness_function(ind) for ind in current_population]
-
-            sorted_indices = sorted(range(len(current_population)),
-                                    key=lambda i: fitnesses[i], reverse=True)
-            elite_indices = sorted_indices[:self.elitement_size]
-            new_population = [current_population[i].copy() for i in elite_indices]
-
-            while len(new_population) < self.population_size:
-                idx1 = random.sample(range(len(current_population)), self.tournament_size)
-                parent1_idx = max(idx1, key=lambda i: fitnesses[i])
-                idx2 = random.sample(range(len(current_population)), self.tournament_size)
-                parent2_idx = max(idx2, key=lambda i: fitnesses[i])
-
-                child1 = current_population[parent1_idx].copy()
-                child2 = current_population[parent2_idx].copy()
-
-                if random.random() < self.crossover_probability:
-                    self.crossover_function(child1, child2)
-                self.mutation_function(child1)
-                self.mutation_function(child2)
-
-                new_population.append(child1)
-                if len(new_population) < self.population_size:
-                    new_population.append(child2)
-
-            current_population = new_population
-
+            current_population = self.run_iteration(current_population)
+            
             new_fitnesses = [self.fitness_function(ind) for ind in current_population]
             population_best = max(range(len(new_fitnesses)), key=lambda index: new_fitnesses[index])
             if new_fitnesses[population_best] > max_fitness:
