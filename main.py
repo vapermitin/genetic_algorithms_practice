@@ -4,9 +4,12 @@ import networkx as nx
 from genetic_algorithm import *
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import pickle
+import json
 import random
-from math import inf
+from math import inf, copysign
+
+# TODO: добавить ввод вероятности появления ребра, добавить возможность указать количество вершин, убрать ребра на диагонали, добавить сохранение в json
+# найденный баг: не уменьшается матрица смежности
 
 def on_entry_click(event, placeholder_text):
     entry = event.widget
@@ -39,24 +42,22 @@ class GeneticAlgorithmApp:
         self.vars = []
         self.entries = []
 
-        btn_frame = tk.Frame(root)
-        btn_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+        self.graph_settings_frame = tk.Frame(root)
+        self.graph_settings_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
         for i in range(3):
-            btn_frame.columnconfigure(i, weight=1)
-        tk.Button(btn_frame, text="Add Vertex", command=self.add_vertex).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-        tk.Button(btn_frame, text="Remove Vertex", command=self.remove_vertex).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        tk.Button(btn_frame, text="Show Graph", command=self.show_graph).grid(row=0, column=2, padx=5, pady=5, sticky="ew")
-        tk.Button(btn_frame, text="Save Matrix", command=self.save_matrix).grid(row=1, column=0, padx=5, pady=5, sticky="ew")
-        tk.Button(btn_frame, text="Load Matrix", command=self.load_matrix).grid(row=1, column=1, padx=5, pady=5, sticky="ew")
-        tk.Button(btn_frame, text="Random Graph", command=self.generate_random_graph).grid(row=1, column=2, padx=5, pady=5, sticky="ew")
-
-        self.frame = tk.Frame(root, bg='lightgray')
-        self.frame.grid(row=1, column=0, rowspan=2, sticky="nsew", padx=5)
-        self.frame.bind("<Configure>", self.on_frame_configure)
-        self.build_grid()
+            self.graph_settings_frame.columnconfigure(i, weight=1)
+        tk.Button(self.graph_settings_frame, text="Add Vertex", command=self.add_vertex).grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        tk.Button(self.graph_settings_frame, text="Remove Vertex", command=self.remove_vertex).grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
+        tk.Button(self.graph_settings_frame, text="Show Graph", command=self.show_graph).grid(row=0, column=2, padx=5, pady=5, sticky="nsew")
+        tk.Button(self.graph_settings_frame, text="Save Matrix", command=self.save_matrix).grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
+        tk.Button(self.graph_settings_frame, text="Load Matrix", command=self.load_matrix).grid(row=1, column=1, padx=5, pady=5, sticky="nsew")
+        tk.Button(self.graph_settings_frame, text="Random Graph", command=self.generate_random_graph).grid(row=1, column=2, padx=5, pady=5, sticky="nsew")
+        self.add_textbox(self.graph_settings_frame, 2, 0, "Edge probability", "edge_probability_entry")
+        self.add_textbox(self.graph_settings_frame, 2, 1, "Vertex count", "vertex_count_entry")
+        tk.Button(self.graph_settings_frame, text="Set Vertex Count", command=self.set_vertex_count).grid(row=2, column=2, padx=5, pady=5, sticky="nsew")
 
         self.graph_frame = tk.Frame(root, bg='white')
-        self.graph_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=5)
+        self.graph_frame.grid(row=1, column=1, sticky="nsw", padx=5, pady=5)
         self.fig, self.ax = plt.subplots(figsize=(5, 4))
         self.ax.clear()
         self.ax.set_axis_off()
@@ -64,12 +65,12 @@ class GeneticAlgorithmApp:
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
         self.fitness_graph_frame = tk.Frame(root, bg='white')
-        self.fitness_graph_frame.grid(row=2, column=1, sticky="nsew", padx=5, pady=5)
+        self.fitness_graph_frame.grid(row=2, column=1, sticky="nsw", padx=5, pady=5)
         self.fig2, self.ax2 = plt.subplots(figsize=(5, 4))
         self.ax2.clear()
         self.canvas2 = FigureCanvasTkAgg(self.fig2, master=self.fitness_graph_frame)
         self.canvas2.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        self.ax2.set_xlabel("Generation")
+        self.ax2.set_xlabel("Iteration")
         self.ax2.set_ylabel("Fitness")
 
         self.root.update_idletasks()
@@ -83,13 +84,13 @@ class GeneticAlgorithmApp:
         for i in range(3):
             self.parameters_frame.columnconfigure(i, weight=1)
 
-        self.add_parameter_button(0, 0, "Population size", "population_size_entry")
-        self.add_parameter_button(0, 1, "Hard Constraint Penalty", "hard_constraint_penalty_entry")
-        self.add_parameter_button(0, 2, "Crossover probability", "crossover_probability_entry")
-        self.add_parameter_button(1, 0, "Mutation Probability", "mutation_probability_entry")
-        self.add_parameter_button(1, 1, "Tournament size", "tournament_size_entry")
-        self.add_parameter_button(1, 2, "Elitement size", "elitement_count_entry")
-        self.add_parameter_button(2, 0, "Iterations count", "iterations_entry", columnspan=3)
+        self.add_textbox(self.parameters_frame, 0, 0, "Population size", "population_size_entry")
+        self.add_textbox(self.parameters_frame, 0, 1, "Hard Constraint Penalty", "hard_constraint_penalty_entry")
+        self.add_textbox(self.parameters_frame, 0, 2, "Crossover probability", "crossover_probability_entry")
+        self.add_textbox(self.parameters_frame, 1, 0, "Mutation Probability", "mutation_probability_entry")
+        self.add_textbox(self.parameters_frame, 1, 1, "Tournament size", "tournament_size_entry")
+        self.add_textbox(self.parameters_frame, 1, 2, "Elitement size", "elitement_count_entry")
+        self.add_textbox(self.parameters_frame, 2, 0, "Iterations count", "iterations_entry", columnspan=3)
 
         control_frame = tk.Frame(root)
         control_frame.grid(row=4, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
@@ -112,6 +113,11 @@ class GeneticAlgorithmApp:
         tk.Label(control_frame, textvariable=self.iteration_var).grid(
             row=0, column=4, padx=5)
 
+        self.frame = tk.Frame(root, bg='lightgray')
+        self.frame.grid(row=1, column=0, rowspan=2, sticky="nsew", padx=5)
+        self.frame.bind("<Configure>", self.on_frame_configure)
+        self.build_grid()
+
         self.ga = None
         self.max_iterations = 0
         self.current_iteration = 0
@@ -119,17 +125,18 @@ class GeneticAlgorithmApp:
         self.best_individuals = []
         self.best_fitnesses = []
 
-    def add_parameter_button(self, row, column, placeholder, attribute_name, **grid_kwargs):
-        entry = tk.Entry(self.parameters_frame, fg='grey')
+    def add_textbox(self, parent_widget, row, column, placeholder, attribute_name, **grid_kwargs):
+        entry = tk.Entry(parent_widget, fg='grey')
         entry.insert(0, placeholder)
         entry.bind('<FocusIn>', lambda e: on_entry_click(e, placeholder))
         entry.bind('<FocusOut>', lambda e: on_focusout(e, placeholder))
-        default_grid = {'sticky': 'ew', 'padx': 5, 'pady': 5}
+        default_grid = {'sticky': 'nsew', 'padx': 5, 'pady': 5}
         default_grid.update(grid_kwargs)
         entry.grid(row=row, column=column, **default_grid)
         setattr(self, attribute_name, entry)
 
-    def build_grid(self):
+    def destroy_grid(self):
+        self.reset_algorithm()
         for row in self.entries:
             for e in row:
                 e.destroy()
@@ -139,6 +146,9 @@ class GeneticAlgorithmApp:
         for i in range(self.n + 1):
             self.frame.grid_rowconfigure(i, weight=0, uniform='', minsize=0)
             self.frame.grid_columnconfigure(i, weight=0, uniform='', minsize=0)
+
+    def build_grid(self):
+        self.destroy_grid()
 
         for i in range(self.n):
             self.frame.grid_rowconfigure(i, weight=1, uniform='cell')
@@ -181,11 +191,15 @@ class GeneticAlgorithmApp:
     def on_change(self, i, j):
         val = self.vars[i][j].get()
         try:
-            float(val)
+            float_value = float(val)
+            if float_value < 0 or copysign(1.0, float_value) < 0:
+                val = "0"
+                self.vars[i][j].set(val)
         except ValueError:
             if val != "":
                 val = "0"
                 self.vars[i][j].set(val)
+        self.reset_algorithm()
         if self.vars[j][i].get() != val:
             self.vars[j][i].set(val)
 
@@ -271,6 +285,18 @@ class GeneticAlgorithmApp:
         self.best_individuals.append(new_best_individual)
         self.best_fitnesses.append(new_best_fitness)
 
+    def set_vertex_count(self):
+        try:
+            if int(self.vertex_count_entry.get()) < 0:
+                messagebox.showerror(title="Application Error", message="Negative vertex count!")
+                return
+        except ValueError:
+            messagebox.showerror(title="Application Error", message="Incorrect vertex count value!")
+            return
+        self.destroy_grid()
+        self.n = int(self.vertex_count_entry.get())
+        self.build_grid()
+
     def reset_algorithm(self):
         self.ga = None
         self.max_iterations = 0
@@ -283,7 +309,7 @@ class GeneticAlgorithmApp:
         self.ax.set_axis_off()
         self.canvas.draw()
         self.ax2.clear()
-        self.ax2.set_xlabel("Generation")
+        self.ax2.set_xlabel("Iteration")
         self.ax2.set_ylabel("Fitness")
         self.canvas2.draw()
 
@@ -315,7 +341,7 @@ class GeneticAlgorithmApp:
             x = range(self.current_iteration + 1)
             y = self.best_fitnesses[:self.current_iteration + 1]
             self.ax2.plot(x, y, marker='o')
-        self.ax2.set_xlabel("Generation")
+        self.ax2.set_xlabel("Iteration")
         self.ax2.set_ylabel("Fitness")
         self.canvas2.draw()
 
@@ -336,33 +362,76 @@ class GeneticAlgorithmApp:
             self.build_grid()
 
     def generate_random_graph(self):
+        edge_probability = None
+        try:
+            edge_probability = float(self.edge_probability_entry.get())
+        except ValueError:
+            messagebox.showerror(title="Application Error", message="Edge probability is not float!")
+            return
+        if edge_probability < 0 or edge_probability > 1:
+            messagebox.showerror(title="Application Error", message="Bad edge probability!")
+            return
+        old_reset_algorithm = self.reset_algorithm
+        self.reset_algorithm = lambda: None
         for i in range(self.n):
             for j in range(self.n):
-                self.vars[i][j].set(str(random.randint(0, 1)))
+                if i == j:
+                    self.vars[i][j].set(0)
+                    continue
+                if random.random() < edge_probability:
+                    self.vars[i][j].set(1)
+                else:
+                    self.vars[i][j].set(0)
+        self.reset_algorithm = old_reset_algorithm
+        self.reset_algorithm()
 
     def save_matrix(self):
         file_object = filedialog.asksaveasfile(
-            mode='wb',
+            mode='w',
             defaultextension=".graph",
             filetypes=[("Graph files", "*.graph")]
         )
         if file_object is not None:
             adjacency_matrix = self.get_adjacency_matrix()
-            pickle.dump(adjacency_matrix, file_object)
+            json.dump(adjacency_matrix, file_object)
             file_object.close()
+
+    def check_adjacency_matrix(self, matrix):
+        n = len(matrix)
+        if not isinstance(matrix, list):
+            return False
+        for i in range(self.n):
+            if not (0 <= i < len(matrix)):
+                return False
+            if not isinstance(matrix[i], list):
+                return False
+            for j in range(self.n):
+                if not (0 <= j < len(matrix[i])) or not (0 <= j < len(matrix)):
+                    return False
+                if not (0 <= i < len(matrix[j])):
+                    return False
+                if not isinstance(matrix[i][j], float):
+                    return False
+                if matrix[i][j] != matrix[j][i]:
+                    return False
+        return True
 
     def load_matrix(self):
         file_object = filedialog.askopenfile(
-            mode='rb',
+            mode='r',
             filetypes=[("Graph files", "*.graph")]
         )
         if file_object is not None:
-            adjacency_matrix = pickle.load(file_object)
+            adjacency_matrix = json.load(file_object)
+            if not self.check_adjacency_matrix(adjacency_matrix):
+                messagebox.showerror(title="Application Error", message="Bad file!")
+                return
+            self.destroy_grid()
             self.n = len(adjacency_matrix)
             self.build_grid()
             for i in range(self.n):
                 for j in range(self.n):
-                    self.vars[i][j].set(f"{adjacency_matrix[i][j]:g}")
+                    self.vars[i][j].set(f"{abs(adjacency_matrix[i][j]):g}")
             file_object.close()
 
     def show_graph(self):
