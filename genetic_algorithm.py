@@ -78,7 +78,7 @@ class GeneticAlgorithm:
 
         return new_population
 
-    def run(self, iterations):
+    def run(self, iterations, stdout=False):
         current_population = self.generate_random_population(self.population_size)
         max_fitness = -inf
         population_fitnesses = []
@@ -93,6 +93,7 @@ class GeneticAlgorithm:
                 max_fitness = new_fitnesses[population_best]
                 max_fitness_individual = current_population[population_best]
             population_fitnesses.append(new_fitnesses[population_best])
-            print(f"Итерация: {iteration}, макс. приспособленность: {max_fitness}")
+            if stdout:
+                print(f"Итерация: {iteration}, макс. приспособленность: {max_fitness}")
 
         return max_fitness_individual, population_fitnesses
