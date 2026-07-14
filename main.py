@@ -9,7 +9,6 @@ import random
 from math import inf, copysign
 
 # TODO: добавить ввод вероятности появления ребра, добавить возможность указать количество вершин, убрать ребра на диагонали, добавить сохранение в json
-# найденный баг: не уменьшается матрица смежности
 
 def on_entry_click(event, placeholder_text):
     entry = event.widget
@@ -30,8 +29,8 @@ class GeneticAlgorithmApp:
         self.root.geometry("900x650")
         self.root.minsize(900, 650)
 
-        root.columnconfigure(0, weight=1)
-        root.columnconfigure(1, weight=1)
+        root.columnconfigure(0, weight=1, uniform='col')
+        root.columnconfigure(1, weight=1, uniform='col')
         root.rowconfigure(0, weight=0)
         root.rowconfigure(1, weight=1)
         root.rowconfigure(2, weight=1)
@@ -57,7 +56,7 @@ class GeneticAlgorithmApp:
         tk.Button(self.graph_settings_frame, text="Set Vertex Count", command=self.set_vertex_count).grid(row=2, column=2, padx=5, pady=5, sticky="nsew")
 
         self.graph_frame = tk.Frame(root, bg='white')
-        self.graph_frame.grid(row=1, column=1, sticky="nsw", padx=5, pady=5)
+        self.graph_frame.grid(row=1, column=1, sticky="nsew", padx=5, pady=5)
         self.fig, self.ax = plt.subplots(figsize=(5, 4))
         self.ax.clear()
         self.ax.set_axis_off()
@@ -65,7 +64,7 @@ class GeneticAlgorithmApp:
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
         self.fitness_graph_frame = tk.Frame(root, bg='white')
-        self.fitness_graph_frame.grid(row=2, column=1, sticky="nsw", padx=5, pady=5)
+        self.fitness_graph_frame.grid(row=2, column=1, sticky="nsew", padx=5, pady=5)
         self.fig2, self.ax2 = plt.subplots(figsize=(5, 4))
         self.ax2.clear()
         self.canvas2 = FigureCanvasTkAgg(self.fig2, master=self.fitness_graph_frame)
