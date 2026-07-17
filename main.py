@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import json
 import random
+from tqdm import tqdm
 from math import inf, copysign
 
 # TODO: добавить ввод вероятности появления ребра, добавить возможность указать количество вершин, убрать ребра на диагонали, добавить сохранение в json
@@ -159,16 +160,17 @@ class GeneticAlgorithmApp:
             row_entries = []
             for j in range(self.n):
                 var = tk.StringVar(value="0")
-                var.trace_add("write", lambda *a, r=i, c=j: self.on_change(r, c))
                 row_vars.append(var)
-                e = tk.Entry(self.frame, textvariable=var, justify="center", width=1)
                 if self.n < 100 and GRID_OPTIMIZATION:
+                    var.trace_add("write", lambda *a, r=i, c=j: self.on_change(r, c))
+                    e = tk.Entry(self.frame, textvariable=var, justify="center", width=1)
                     e.grid(row=i, column=j, sticky="nsew", padx=1, pady=1)
-                row_entries.append(e)
+                    row_entries.append(e)
             self.vars.append(row_vars)
             self.entries.append(row_entries)
 
-        self.adjust_sizes()
+        if self.n < 100 and GRID_OPTIMIZATION:
+            self.adjust_sizes()
 
     def on_frame_configure(self, event):
         self.adjust_sizes()
@@ -263,7 +265,7 @@ class GeneticAlgorithmApp:
         if not self._initialize_ga():
             return
 
-        for i in range(self.max_iterations):
+        for i in tqdm(range(self.max_iterations)):
             self._step_forward()
 
         self.current_iteration = self.max_iterations
