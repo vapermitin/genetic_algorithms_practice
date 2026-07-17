@@ -9,6 +9,7 @@ import random
 from math import inf, copysign
 
 # TODO: добавить ввод вероятности появления ребра, добавить возможность указать количество вершин, убрать ребра на диагонали, добавить сохранение в json
+GRID_OPTIMIZATION = True
 
 def on_entry_click(event, placeholder_text):
     entry = event.widget
@@ -161,7 +162,8 @@ class GeneticAlgorithmApp:
                 var.trace_add("write", lambda *a, r=i, c=j: self.on_change(r, c))
                 row_vars.append(var)
                 e = tk.Entry(self.frame, textvariable=var, justify="center", width=1)
-                e.grid(row=i, column=j, sticky="nsew", padx=1, pady=1)
+                if self.n < 100 and GRID_OPTIMIZATION:
+                    e.grid(row=i, column=j, sticky="nsew", padx=1, pady=1)
                 row_entries.append(e)
             self.vars.append(row_vars)
             self.entries.append(row_entries)
@@ -392,7 +394,7 @@ class GeneticAlgorithmApp:
         )
         if file_object is not None:
             adjacency_matrix = self.get_adjacency_matrix()
-            json.dump(adjacency_matrix, file_object)
+            json.dump(adjacency_matrix, file_object, indent=4)
             file_object.close()
 
     def check_adjacency_matrix(self, matrix):
@@ -428,9 +430,13 @@ class GeneticAlgorithmApp:
             self.destroy_grid()
             self.n = len(adjacency_matrix)
             self.build_grid()
+            old_reset_algorithm = self.reset_algorithm
+            self.reset_algorithm = lambda: None
             for i in range(self.n):
                 for j in range(self.n):
                     self.vars[i][j].set(f"{abs(adjacency_matrix[i][j]):g}")
+            self.reset_algorithm = old_reset_algorithm
+            self.reset_algorithm()
             file_object.close()
 
     def show_graph(self):
