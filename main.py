@@ -172,13 +172,14 @@ class GeneticAlgorithmApp:
             self.vars.append(row_vars)
             self.entries.append(row_entries)
 
-        if self.n < 100 and GRID_OPTIMIZATION:
-            self.adjust_sizes()
+        self.adjust_sizes()
 
     def on_frame_configure(self, event):
         self.adjust_sizes()
 
     def adjust_sizes(self):
+        if self.n >= 100 and GRID_OPTIMIZATION:
+            return
         if self.n == 0:
             return
         frame_w = self.frame.winfo_width()
