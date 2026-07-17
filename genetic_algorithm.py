@@ -39,11 +39,8 @@ class GeneticAlgorithm:
     # Равномерное скрещивание
     def crossover_function(self, first_individual, second_individual):
         for index in range(len(self.input_matrix)):
-            first_individual_value = first_individual[index]
             if random.random() < 0.5:
-                first_individual[index] = second_individual[index]
-            if random.random() < 0.5:
-                second_individual[index] = first_individual_value
+                first_individual[index], second_individual[index] = second_individual[index], first_individual[index]
     
     def mutation_function(self, individual):
         for index in range(len(self.input_matrix)):
