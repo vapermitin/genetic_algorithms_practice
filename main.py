@@ -9,6 +9,9 @@ import random
 from tqdm import tqdm
 from math import inf, copysign
 
+# Список литературы: добавить учебники
+# Используемые технологии: расписать зачем нужна каждая технология
+
 # TODO: добавить ввод вероятности появления ребра, добавить возможность указать количество вершин, убрать ребра на диагонали, добавить сохранение в json
 GRID_OPTIMIZATION = True
 
@@ -383,8 +386,10 @@ class GeneticAlgorithmApp:
                     continue
                 if random.random() < edge_probability:
                     self.vars[i][j].set(1)
+                    self.vars[j][i].set(1)
                 else:
                     self.vars[i][j].set(0)
+                    self.vars[j][i].set(0)
         self.reset_algorithm = old_reset_algorithm
         self.reset_algorithm()
 
@@ -410,6 +415,7 @@ class GeneticAlgorithmApp:
                 return False
             for j in range(self.n):
                 if not (0 <= j < len(matrix[i])) or not (0 <= j < len(matrix)):
+                    print(1)
                     return False
                 if not (0 <= i < len(matrix[j])):
                     return False
